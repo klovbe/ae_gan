@@ -26,16 +26,18 @@ class Simple_separate:
                 self.decoder_logits = self.decoder_sign(self.encoder_sign(self.imitation, is_training), is_training)
                 self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
 
+        self.gv_loss, self.mask = self.calc_gv_loss(x)
         with tf.name_scope("generate_data"):
             self.completion = self.imitation * self.imitation_sign
+            self.completion = x*mask + self.completion*(1-mask)
 
 
 
         self.real = self.discriminator(x, reuse=None)
         self.fake = self.discriminator(self.completion, reuse=True)
-        self.gv_loss = self.calc_gv_loss(x)
-        self.d_loss_real,self.d_loss_fake,self.accuracy = self.calc_d_loss(self.real, self.fake)
-        self.g_loss = tf.subtract(self.gv_loss, self.d_loss_fake, name="cal_g_loss")
+
+        self.d_loss_real,self.d_loss_fake,self.dg_loss_fake,self.accuracy = self.calc_d_loss(self.real, self.fake)
+        self.g_loss = tf.add(self.gv_loss, self.dg_loss_fake,name="cal_g_loss")
         self.d_loss = tf.add(self.d_loss_fake, self.d_loss_real, name="cal_d_loss")
 
 
@@ -263,17 +265,18 @@ class Simple_separate:
 
     def calc_gv_loss(self, x):
         # loss = tf.nn.l2_loss(x - completion)
-        with tf.name_scope("cal_gv_loss"):
+        with tf.name_scope("cal_mask"):
             mask = tf.equal(x, tf.zeros_like(x))
             mask = tf.cast(mask, dtype=tf.float32)
             mask = 1 - mask
             count = tf.reduce_sum(mask)
+        with tf.name_scope("cal_gv_loss"):
             loss_sum = tf.pow((x - self.imitation),2)
-            loss_gv = tf.reduce_sum(loss_sum)/count
+            loss_gv = tf.reduce_sum(loss_sum*mask)/count
         with tf.name_scope("cal_binary_loss"):
-            loss_binary = tf.nn.sigmoid_cross_entropy_with_logits(self.imitation_sign,)
-
-        return loss_gv
+            loss_binary = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.imitation_sign, labels=mask))
+            gv_loss = tf.add(loss_binary, loss_gv)
+        return gv_loss,mask
 
 
     def calc_d_loss(self, real, fake):
@@ -282,8 +285,10 @@ class Simple_separate:
         with tf.name_scope("cal_d_loss"):
             d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=real, labels=tf.ones_like(real)))
             d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake, labels=tf.zeros_like(fake)))
+            dg_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake, labels=tf.ones_like(fake)))
             d_loss_real = d_loss_real * alpha
             d_loss_fake = d_loss_fake * alpha
+            dg_loss_fake = dg_loss_fake * alpha
             with tf.name_scope('accuracy'):
                 with tf.name_scope('correct_prediction'):
                     real = tf.sigmoid(real)
@@ -294,5 +299,5 @@ class Simple_separate:
                     correct_prediction = tf.equal(tf.argmax(real_two, 1), label)
                 with tf.name_scope('accuracy'):
                     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        return d_loss_real,d_loss_fake,accuracy
+        return d_loss_real,d_loss_fake,dg_loss_fake,accuracy
 
