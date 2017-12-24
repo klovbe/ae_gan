@@ -75,6 +75,10 @@ def batch_normalize(x, is_training, decay=0.99, epsilon=0.001):
     return tf.cond(is_training, bn_train, bn_inference)
 
 
+def batch_norm(x, is_training, epsilon=1e-5, momentum=0.9, name="batch_norm"):
+    """Code modification of http://stackoverflow.com/a/33950177"""
+    return tf.contrib.layers.batch_norm(x, decay=momentum, updates_collections=None, epsilon=epsilon,
+                                        center=True, scale=True, is_training=is_training, scope=name)
 
 def _assign_moving_average(orig_val, new_val, momentum, name):
     with tf.name_scope(name):
@@ -82,7 +86,7 @@ def _assign_moving_average(orig_val, new_val, momentum, name):
     return tf.assign_add(orig_val, scaled_diff)
 
 
-def batch_norm(x,
+def batch_norm_shu(x,
                phase,
                shift=True,
                scale=True,
