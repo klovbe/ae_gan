@@ -23,12 +23,12 @@ def train():
     dropout_value = 0.9
     dropout_sign = 1.0
     train_datapath = r"F:/project/simulation_data/drop60_p.train"
-    EPOCH = 2500
+    EPOCH = 1500
     # outDir = r"F:/project/simulation_data/drop60/bn_"
-    model_name = "AE-GAN_bn_dp_0.9_0_separate"
+    model_name = "AE-GAN_bn_dp_0.9_0_simple"
     load_checkpoint = False
     outDir = os.path.join("F:/project/simulation_data/drop60", model_name)
-    model = "seperate"
+    model = "simple"
 
 
     x = tf.placeholder(tf.float32, [None, feature_nums], name= "input_data")
@@ -43,7 +43,7 @@ def train():
     }
 
     Network = model_dict[model]
-    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=True)
+    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=False)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
@@ -98,11 +98,11 @@ def train():
                 x_batch = dataset.next()
                 _, gv_loss, gv_summary_str = sess.run([gv_train_op, model.gv_loss, model.gv_sum], feed_dict={x: x_batch, is_training: True,  K.learning_phase(): 1})
                 if i % 10 == 0:
-                    writer.add_summary(gv_summary_str, tf.train.global_step(sess))
+                    writer.add_summary(gv_summary_str, tf.train.global_step(sess,global_step))
 
             print('Completion loss: {}'.format(gv_loss))
             if sess.run(epoch) % 100 == 0:
-                saver.save(sess, load_model_dir+'/pretrained_g', write_meta_graph=False)
+                saver.save(sess, load_model_dir+'/pretrained_g', write_meta_graph=True)
 
             if sess.run(epoch) == PRETRAIN_EPOCH:
                 dataset = DataSet(train_datapath, BATCH_SIZE,onepass=True, shuffle=False)
@@ -140,7 +140,7 @@ def train():
                 df_i.to_csv(outDir + "generator.complete", index=None)
                 df_e.to_csv(outDir + "generator.embed", index=None)
                 print("save complete data to {}".format(outDir + "infer.complete"))
-                saver.save(sess, load_model_dir+'/pretrained_g', write_meta_graph=False, global_step=global_step)
+                saver.save(sess, load_model_dir+'/pretrained_g', write_meta_graph=True, global_step=global_step)
 
         # Discrimitation
         elif sess.run(epoch) <= PRETRAIN_EPOCH_d:
@@ -150,12 +150,12 @@ def train():
                     [d_train_op, model.d_loss, model.d_sum],
                     feed_dict={x: x_batch, is_training: True, K.learning_phase(): 1})
                 if i % 10 == 0:
-                    writer.add_summary(d_summary_str, tf.train.global_step(sess))
+                    writer.add_summary(d_summary_str, tf.train.global_step(sess,global_step))
 
             print('Discriminator loss: {}'.format(d_loss))
             if sess.run(epoch) % 100 == 0:
                 saver = tf.train.Saver()
-                saver.save(sess, load_model_dir+'/pretrained_d', write_meta_graph=False, global_step=global_step)
+                saver.save(sess, load_model_dir+'/pretrained_d', write_meta_graph=True, global_step=global_step)
 
         #together
         elif sess.run(epoch) < EPOCH:
@@ -165,17 +165,17 @@ def train():
                     [d_train_op, model.d_loss, model.d_sum],
                     feed_dict={x: x_batch, is_training: True, K.learning_phase(): 1})
                 if i % 10 == 0:
-                    writer.add_summary(d_summary_str, tf.train.global_step(sess))
+                    writer.add_summary(d_summary_str, tf.train.global_step(sess, global_step))
 
                 _, g_loss, g_summary_str = sess.run([g_train_op, model.g_loss, model.g_sum], feed_dict={x: x_batch, is_training: True, K.learning_phase(): 1})
                 if i % 10 == 0:
-                    writer.add_summary( g_summary_str, tf.train.global_step(sess) )
+                    writer.add_summary( g_summary_str, tf.train.global_step(sess,global_step) )
 
             print('Completion loss: {}'.format(g_loss))
             print('Discriminator loss: {}'.format(d_loss))
             if sess.run(epoch) % 100 == 0:
                 saver = tf.train.Saver()
-                saver.save(sess, load_model_dir+'/latest', write_meta_graph=False, global_step=global_step)
+                saver.save(sess, load_model_dir+'/latest', write_meta_graph=True, global_step=global_step)
 
 
         elif sess.run(epoch) == EPOCH:
@@ -198,8 +198,6 @@ def train():
                 complete_datas.append(completion)
                 imitate_datas.append(imitation)
                 embed_datas.append(embed)
-            # saver = tf.train.Saver()
-            # saver.save(sess, load_model_dir+'/complete', write_meta_graph=False)
 
             complete_datas = np.reshape(np.concatenate(complete_datas, axis=0), (-1, feature_nums))
             imitate_datas = np.reshape(np.concatenate(imitate_datas, axis=0), (-1, feature_nums))

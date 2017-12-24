@@ -14,22 +14,21 @@ class Simple_separate:
         self.dropout_value = dropout_value
         self.dropout_sign = dropout_sign
         self.is_bn = is_bn
-        with tf.variable_scope("cal_out"):
-            if is_bn:
-                self.encoderv_out = self.encoder_value_bn(x, is_training)
-                self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
-                self.decoder_logits = self.decoder_sign_bn(self.encoder_sign_bn(self.imitation, is_training), is_training)
-                self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
-            else:
-                self.encoderv_out = self.encoder_value(x, is_training)
-                self.imitation = self.decoder_value(self.encoderv_out, is_training)
-                self.decoder_logits = self.decoder_sign(self.encoder_sign(self.imitation, is_training), is_training)
-                self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
+        if is_bn:
+            self.encoderv_out = self.encoder_value_bn(x, is_training)
+            self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
+            self.decoder_logits = self.decoder_sign_bn(self.encoder_sign_bn(self.imitation, is_training), is_training)
+            self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
+        else:
+            self.encoderv_out = self.encoder_value(x, is_training)
+            self.imitation = self.decoder_value(self.encoderv_out, is_training)
+            self.decoder_logits = self.decoder_sign(self.encoder_sign(self.imitation, is_training), is_training)
+            self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
 
-        self.gv_loss, self.mask = self.calc_gv_loss(x)
+        self.gv_loss, self.mask = self.calc_gv_loss(x, self.imitation, self.imitation_sign)
         with tf.name_scope("generate_data"):
             self.completion = self.imitation * self.imitation_sign
-            self.completion = x*mask + self.completion*(1-mask)
+            self.completion = x*self.mask + self.completion*(1-self.mask)
 
 
 
@@ -263,7 +262,7 @@ class Simple_separate:
         return h_logits
 
 
-    def calc_gv_loss(self, x):
+    def calc_gv_loss(self, x, imitation, imitation_sign):
         # loss = tf.nn.l2_loss(x - completion)
         with tf.name_scope("cal_mask"):
             mask = tf.equal(x, tf.zeros_like(x))
@@ -271,10 +270,10 @@ class Simple_separate:
             mask = 1 - mask
             count = tf.reduce_sum(mask)
         with tf.name_scope("cal_gv_loss"):
-            loss_sum = tf.pow((x - self.imitation),2)
+            loss_sum = tf.pow((x - imitation),2)
             loss_gv = tf.reduce_sum(loss_sum*mask)/count
         with tf.name_scope("cal_binary_loss"):
-            loss_binary = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.imitation_sign, labels=mask))
+            loss_binary = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=imitation_sign, labels=mask))
             gv_loss = tf.add(loss_binary, loss_gv)
         return gv_loss,mask
 
