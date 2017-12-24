@@ -34,9 +34,6 @@ def train():
     # completion = tf.placeholder(tf.float32, [BATCH_SIZE, feature_nums])
     is_training = tf.placeholder(tf.bool, [], name="is_training")
     # completed = tf.placeholder(tf.float32,[None, feature_nums], name="generator_out")
-    if model == "separate":
-        mask = tf.placeholder(tf.float32, [None, feature_nums], name= "input_data")
-
 
     model_dict = {
         "simple": Simple_model,

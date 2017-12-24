@@ -8,7 +8,7 @@ from keras import constraints
 from keras import backend as K
 
 class Simple_separate:
-    def __init__(self, x, mask, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn):
+    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn):
         self.batch_size = batch_size
         self.feature_num = feature_num
         self.dropout_value = dropout_value
