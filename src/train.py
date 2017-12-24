@@ -24,10 +24,10 @@ def train():
     train_datapath = r"F:/project/simulation_data/drop60_p.train"
     EPOCH = 2500
     # outDir = r"F:/project/simulation_data/drop60/bn_"
-    model_name = "AE-GAN_bn_dp_0.9_0_approximate"
+    model_name = "AE-GAN_bn_dp_0.9_0_separate"
     load_checkpoint = False
     outDir = os.path.join("F:/project/simulation_data/drop60", model_name)
-    model = "approximate"
+    model = "seperate"
 
 
     x = tf.placeholder(tf.float32, [None, feature_nums], name= "input_data")
