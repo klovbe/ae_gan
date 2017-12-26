@@ -75,7 +75,7 @@ def batch_normalize(x, is_training, decay=0.99, epsilon=0.001):
     return tf.cond(is_training, bn_train, bn_inference)
 
 
-def batch_norm(x, is_training, epsilon=1e-5, momentum=0.9, name="batch_norm"):
+def batch_norm(x, is_training, epsilon=1e-3, momentum=0.99, name=None):
     """Code modification of http://stackoverflow.com/a/33950177"""
     return tf.contrib.layers.batch_norm(x, decay=momentum, updates_collections=None, epsilon=epsilon,
                                         center=True, scale=True, is_training=is_training, scope=name)
@@ -87,7 +87,7 @@ def _assign_moving_average(orig_val, new_val, momentum, name):
 
 
 def batch_norm_shu(x,
-               phase,
+               is_training,
                shift=True,
                scale=True,
                momentum=0.99,
@@ -124,10 +124,10 @@ def batch_norm_shu(x,
         moving_m = tf.get_variable('mean', var_shape, initializer=tf.zeros_initializer, trainable=False)
         moving_v = tf.get_variable('var', var_shape, initializer=tf.ones_initializer, trainable=False)
 
-        if isinstance(phase, bool):
-            output = training() if phase else testing()
+        if isinstance(is_training, bool):
+            output = training() if is_training else testing()
         else:
-            output = tf.cond(phase, training, testing)
+            output = tf.cond(is_training, training, testing)
 
         if scale:
             output *= tf.get_variable('gamma', var_shape, initializer=tf.ones_initializer)

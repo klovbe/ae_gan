@@ -68,7 +68,7 @@ def get_similarity(test_path_or_df, infer_path_or_df):
     print(coefficient, p_value)
   return
 
-def plot_headmap(test_path_or_df, infer_path_or_df, save_path, top_features=100, **kwargs):
+def plot_heatmap(test_path_or_df, infer_path_or_df, save_path, top_features=100, **kwargs):
 
   [whole_df, dropout_df, magic_df, scimpute_df, infer_df, indexs] = get_dataframe(test_path_or_df, infer_path_or_df)
   df_list = [whole_df, magic_df, scimpute_df, infer_df]
@@ -195,7 +195,7 @@ def plot_complete(test_path_or_df, infer_path_or_df, save_path, onepage=False):
 
 if __name__ == "__main__":
 
-  plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/bn_/AE-GAN_bn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop60_test.png")
-  plot_headmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/bn_/AE-GAN_bn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
+  plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop60_test.png")
+  plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
   # get_similarity("/home/bigdata/cwl/Gan/data/drop80_log.infer", "/home/bigdata/cwl/Gan/prediction/log_sigmoid/log_sigmoid.3500.fix.complete")
-  scatter_compare("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/bn_/AE-GAN_bn_dp_0.9_0_simpleinfer.complete", "F:/plot/scatter_compare.png")
+  scatter_compare("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/scatter_compare.png")

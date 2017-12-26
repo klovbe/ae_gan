@@ -17,15 +17,15 @@ def train():
 
     LEARNING_RATE = 1e-3
     BATCH_SIZE = 64
-    PRETRAIN_EPOCH = 1000
-    PRETRAIN_EPOCH_d = 1100
+    PRETRAIN_EPOCH = 300
+    PRETRAIN_EPOCH_d = 400
     feature_nums = 15549
     dropout_value = 0.9
     dropout_sign = 1.0
     train_datapath = r"F:/project/simulation_data/drop60_p.train"
     EPOCH = 1500
     # outDir = r"F:/project/simulation_data/drop60/bn_"
-    model_name = "AE-GAN_bn_dp_0.9_0_simple"
+    model_name = "AE-GAN_newbn_dp_0.9_0_simple"
     load_checkpoint = False
     outDir = os.path.join("F:/project/simulation_data/drop60", model_name)
     model = "simple"
@@ -43,7 +43,7 @@ def train():
     }
 
     Network = model_dict[model]
-    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=False)
+    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=True)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)

@@ -137,17 +137,15 @@ class Simple_model:
     def encoder_value_bn(self, input, is_training):
         with tf.variable_scope("encoder_value"):
             out = Dense(self.feature_num // 4, activation="linear")(input)
-            out = batch_norm(out, phase = is_training, shift=True, scale=True, momentum=0.99, eps=1e-3, internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training = is_training)
             out = keras.layers.activations.relu(out)
             if self.dropout_value < 1.0:
                 out = tf.nn.dropout(out, 1.0 - self.dropout_value, name="dropout_ev")
             out = Dense(self.feature_num // 16, activation="linear")(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.relu(out)
             out = Dense(self.feature_num // 32,activation="linear")(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.advanced_activations.PReLU(alpha_initializer="zero", weights=None)(out)
 
             # out = layers.linear(input, self.hidden_size, scope="enc_first_layer")
@@ -161,20 +159,17 @@ class Simple_model:
         with tf.variable_scope("decoder_value"):
             # out = Dropout(0.2)(input)
             out = Dense(self.feature_num // 16,activation="linear")(input)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.relu(out)
             out = Dense(self.feature_num // 4, activation="linear")(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.relu(out)
             # out = Dense(self.feature_num, kernel_constraint=constraints.non_neg, bias_constraint=constraints.non_neg)(out)
 
             if self.dropout_value < 1.0:
                 out = tf.nn.dropout(out, 1 - self.dropout_value, name="dropout_dv")
             out = Dense(self.feature_num,activation="linear", kernel_regularizer=regularizers.l2(0.01))(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.advanced_activations.PReLU(weights=None, alpha_initializer="zero")(out)
 
             # out = layers.linear(input, self.feature_num, scope="dec_first_layer")
@@ -187,18 +182,15 @@ class Simple_model:
     def encoder_sign_bn(self, input, is_training):
         with tf.variable_scope("encoder_sign"):
             out = Dense(self.feature_num // 4)(input)
-            out = batch_norm(out, phase = is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training = is_training)
             out = keras.layers.activations.relu(out)
             if self.dropout_sign < 1.0:
                 out = tf.nn.dropout(out, 1.0 - self.dropout_sign, name="dropout_es")
             out = Dense(self.feature_num // 16)(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.relu(out)
             out = Dense(self.feature_num // 32)(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.advanced_activations.PReLU(alpha_initializer="zero", weights=None)(out)
 
             # out = layers.linear(input, self.hidden_size, scope="enc_first_layer")
@@ -212,12 +204,10 @@ class Simple_model:
         with tf.variable_scope("decoder_sign"):
             # out = Dropout(0.2)(input)
             out = Dense(self.feature_num // 16)(input)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.relu(out)
             out = Dense(self.feature_num // 4)(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.relu(out)
             # out = Dense(self.feature_num, kernel_constraint=constraints.non_neg, bias_constraint=constraints.non_neg)(out)
             if self.dropout_sign < 1.0:
@@ -225,8 +215,7 @@ class Simple_model:
             # if self.dropout > 0.0:
             #     out = keras.layers.Dropout(self.dropout)(out)
             out = Dense(self.feature_num, kernel_regularizer=regularizers.l2(0.01))(out)
-            out = batch_norm(out, phase=is_training, shift=True, scale=True, momentum=0.99, eps=1e-3,
-                             internal_update=False, scope=None, reuse=None)
+            out = batch_norm(out, is_training=is_training)
             out = keras.layers.activations.sigmoid(out)
 
             # out = keras.layers.Activation(weights=None, alpha_initializer="zero")(out)
