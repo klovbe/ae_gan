@@ -15,18 +15,20 @@ import keras.backend as K
 
 def train():
 
-    LEARNING_RATE = 1e-3
+    LEARNING_RATE1 = 1e-3
+    LEARNING_RATE2 = 0.001
     BATCH_SIZE = 64
-    PRETRAIN_EPOCH = 300
-    PRETRAIN_EPOCH_d = 400
+    PRETRAIN_EPOCH = 500
+    PRETRAIN_EPOCH_d = 700
     feature_nums = 15549
     dropout_value = 0.9
     dropout_sign = 1.0
     train_datapath = r"F:/project/simulation_data/drop60_p.train"
-    EPOCH = 1500
+    EPOCH = 5000
     # outDir = r"F:/project/simulation_data/drop60/bn_"
-    model_name = "AE-GAN_newbn_dp_0.9_0_simple"
-    load_checkpoint = False
+    # model_name = "AE-GAN_bn_dp_0.9_0_1e-4_2lr_alpha_0.5_separate"
+    model_name = "AE-GAN_bn_dp_0.9_0_1e-4_1lr_alpha_0.1_log_simple"
+    load_checkpoint = True
     outDir = os.path.join("F:/project/simulation_data/drop60", model_name)
     model = "simple"
 
@@ -35,6 +37,7 @@ def train():
     # completion = tf.placeholder(tf.float32, [BATCH_SIZE, feature_nums])
     is_training = tf.placeholder(tf.bool, [], name="is_training")
     # completed = tf.placeholder(tf.float32,[None, feature_nums], name="generator_out")
+    learning_rate = tf.placeholder(tf.float32, shape=[])
 
     model_dict = {
         "simple": Simple_model,
@@ -43,13 +46,13 @@ def train():
     }
 
     Network = model_dict[model]
-    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=True)
+    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=True, is_log=False)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
 
     with tf.name_scope("adam_optimizer"):
-        opt = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
+        opt = tf.train.AdamOptimizer(learning_rate=learning_rate)
         gv_train_op = opt.minimize(model.gv_loss, global_step=global_step, var_list=model.g_variables)
         g_train_op = opt.minimize(model.g_loss, global_step=global_step, var_list=model.g_variables)
         d_train_op = opt.minimize(model.d_loss, global_step=global_step, var_list=model.d_variables)
@@ -96,12 +99,13 @@ def train():
         if sess.run(epoch) <= PRETRAIN_EPOCH:
             for i in tqdm.tqdm(range(step_num)):
                 x_batch = dataset.next()
-                _, gv_loss, gv_summary_str = sess.run([gv_train_op, model.gv_loss, model.gv_sum], feed_dict={x: x_batch, is_training: True,  K.learning_phase(): 1})
+                _, gv_loss, gv_summary_str = sess.run([gv_train_op, model.gv_loss, model.gv_sum],
+                                                      feed_dict={x: x_batch, is_training: True, learning_rate: LEARNING_RATE1, K.learning_phase(): 1})
                 if i % 10 == 0:
                     writer.add_summary(gv_summary_str, tf.train.global_step(sess,global_step))
 
             print('Completion loss: {}'.format(gv_loss))
-            if sess.run(epoch) % 100 == 0:
+            if sess.run(epoch) % 500 == 0:
                 saver.save(sess, load_model_dir+'/pretrained_g', write_meta_graph=True)
 
             if sess.run(epoch) == PRETRAIN_EPOCH:
@@ -113,7 +117,7 @@ def train():
                     x_batch = dataset.next()
                     mask = x_batch == 0
                     embed, imitation, completion = sess.run([model.encoderv_out, model.imitation, model.completion],
-                                                            feed_dict={x: x_batch, is_training: False,
+                                                            feed_dict={x: x_batch, is_training: False, learning_rate: LEARNING_RATE1,
                                                                        K.learning_phase(): 0})
                     completion = np.array(completion, dtype=np.float)
                     imitation = np.array(imitation, dtype=np.float)
@@ -148,12 +152,12 @@ def train():
                 x_batch = dataset.next()
                 _, d_loss,d_summary_str = sess.run(
                     [d_train_op, model.d_loss, model.d_sum],
-                    feed_dict={x: x_batch, is_training: True, K.learning_phase(): 1})
+                    feed_dict={x: x_batch, is_training: True, learning_rate: LEARNING_RATE1, K.learning_phase(): 1})
                 if i % 10 == 0:
                     writer.add_summary(d_summary_str, tf.train.global_step(sess,global_step))
 
             print('Discriminator loss: {}'.format(d_loss))
-            if sess.run(epoch) % 100 == 0:
+            if sess.run(epoch) % 500 == 0:
                 saver = tf.train.Saver()
                 saver.save(sess, load_model_dir+'/pretrained_d', write_meta_graph=True, global_step=global_step)
 
@@ -163,17 +167,18 @@ def train():
                 x_batch = dataset.next()
                 _, d_loss,d_summary_str = sess.run(
                     [d_train_op, model.d_loss, model.d_sum],
-                    feed_dict={x: x_batch, is_training: True, K.learning_phase(): 1})
+                    feed_dict={x: x_batch, is_training: True, learning_rate: LEARNING_RATE2, K.learning_phase(): 1})
                 if i % 10 == 0:
                     writer.add_summary(d_summary_str, tf.train.global_step(sess, global_step))
 
-                _, g_loss, g_summary_str = sess.run([g_train_op, model.g_loss, model.g_sum], feed_dict={x: x_batch, is_training: True, K.learning_phase(): 1})
+                _, g_loss, g_summary_str = sess.run([g_train_op, model.g_loss, model.g_sum],
+                                                    feed_dict={x: x_batch, is_training: True, learning_rate: LEARNING_RATE2, K.learning_phase(): 1})
                 if i % 10 == 0:
                     writer.add_summary( g_summary_str, tf.train.global_step(sess,global_step) )
 
             print('Completion loss: {}'.format(g_loss))
             print('Discriminator loss: {}'.format(d_loss))
-            if sess.run(epoch) % 100 == 0:
+            if sess.run(epoch) % 500 == 0:
                 saver = tf.train.Saver()
                 saver.save(sess, load_model_dir+'/latest', write_meta_graph=True, global_step=global_step)
 
@@ -187,7 +192,7 @@ def train():
                 x_batch = dataset.next()
                 mask = x_batch == 0
                 embed,imitation,completion = sess.run([model.encoderv_out, model.imitation, model.completion],
-                                                      feed_dict={x: x_batch, is_training: False, K.learning_phase(): 0}
+                                                      feed_dict={x: x_batch, is_training: False, learning_rate: LEARNING_RATE2, K.learning_phase(): 0}
                                                       )
                 completion = np.array(completion, dtype=np.float)
                 imitation = np.array(imitation, dtype=np.float)

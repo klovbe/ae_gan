@@ -31,7 +31,7 @@ def row_normalization(data, factor=1e6, **kwargs):
   print("begin to loop cal log...")
   m, n = np.shape(div)
   div = np.log(1 + factor * div)
-  print(np.max(div),np.min(div))
+  print("data range is {}".format(np.max(div),np.min(div)))
   return div
 
 def divide_max(data):
@@ -72,9 +72,8 @@ def sub_handle(path, way,ind_col=0, trans=True ,save_path=None,**kwargs):
   columns = list(data.columns)
   data = data.values
   data = trans_map[way](data,**kwargs)
-  print(np.max(data), np.min(data))
+  print("data range is {}".format(np.max(data), np.min(data)))
   data = pd.DataFrame(data, columns=columns)
-  print(data.shape)
 
   if save_path is not None:
     data.to_csv(save_path, index=False)

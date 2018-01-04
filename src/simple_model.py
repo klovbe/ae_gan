@@ -8,12 +8,13 @@ from keras import constraints
 from keras import backend as K
 
 class Simple_model:
-    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn):
+    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn, is_log):
         self.batch_size = batch_size
         self.feature_num = feature_num
         self.dropout_value = dropout_value
         self.dropout_sign = dropout_sign
         self.is_bn = is_bn
+        self.is_log = is_log
         if is_bn:
             self.encoderv_out = self.encoder_value_bn(x, is_training)
             self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
@@ -29,9 +30,14 @@ class Simple_model:
         self.real = self.discriminator(x, reuse=None)
         self.fake = self.discriminator(self.completion, reuse=True)
         self.gv_loss = self.calc_gv_loss(x, self.completion)
-        self.d_loss_real,self.d_loss_fake,self.accuracy = self.calc_d_loss(self.real, self.fake)
-        self.g_loss = tf.subtract(self.gv_loss, self.d_loss_fake, name="cal_g_loss")
-        self.d_loss = tf.add(self.d_loss_fake, self.d_loss_real, name="cal_d_loss")
+        if is_log:
+            self.d_loss_real,self.d_loss_fake,self.accuracy = self.calc_d_loss(self.real, self.fake)
+            self.g_loss = tf.subtract(self.gv_loss, self.d_loss_fake, name="cal_g_loss")
+            self.d_loss = tf.add(self.d_loss_fake, self.d_loss_real, name="cal_d_loss")
+        else:
+            self.d_loss_real, self.d_loss_fake, self.dg_loss_fake, self.accuracy = self.calc_d_loss1(self.real,self.fake)
+            self.g_loss = tf.add(self.gv_loss, self.dg_loss_fake, name="cal_g_loss")
+            self.d_loss = tf.add(self.d_loss_fake, self.d_loss_real, name="cal_d_loss")
 
 
         scope_list = ["encoder_value", "encoder_sign", "decoder_sign", "decoder_value"]
@@ -318,4 +324,26 @@ class Simple_model:
                 with tf.name_scope('accuracy'):
                     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         return d_loss_real,d_loss_fake,accuracy
+
+    def calc_d_loss1(self, real, fake):
+        alpha = 0.5
+        #logits: theta *x ,same dimension as categories
+        with tf.name_scope("cal_d_loss"):
+            d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=real, labels=tf.ones_like(real)))
+            d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake, labels=tf.zeros_like(fake)))
+            dg_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=fake, labels=tf.ones_like(fake)))
+            d_loss_real = d_loss_real * alpha
+            d_loss_fake = d_loss_fake * alpha
+            dg_loss_fake = dg_loss_fake * alpha
+            with tf.name_scope('accuracy'):
+                with tf.name_scope('correct_prediction'):
+                    real = tf.sigmoid(real)
+                    real_minus = 1 - real
+                    real_two = tf.concat((real, real_minus), -1)
+                    label = tf.zeros(shape=tf.shape(real),dtype=tf.int64)
+                    # index = tf.argmax(real_two, 1)
+                    correct_prediction = tf.equal(tf.argmax(real_two, 1), label)
+                with tf.name_scope('accuracy'):
+                    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        return d_loss_real,d_loss_fake,dg_loss_fake,accuracy
 

@@ -26,8 +26,8 @@ def get_top_feature(df, top=100):
 
 def raw_dataframe(test_path_or_df, infer_path_or_df):
   if type(test_path_or_df) == str:
-    dropout_df = data_preprocess.sub_handle(test_path_or_df,way="reverse",ind_col=None, trans=False)
-    infer_df = data_preprocess.sub_handle(infer_path_or_df,way="reverse",ind_col=None,trans=False)
+    dropout_df = data_preprocess.sub_handle(test_path_or_df,way="same",ind_col=None, trans=False)
+    infer_df = data_preprocess.sub_handle(infer_path_or_df,way="same",ind_col=None,trans=False)
   else:
     dropout_df = test_path_or_df
     infer_df = infer_path_or_df
@@ -151,7 +151,7 @@ def plot_complete(test_path_or_df, infer_path_or_df, save_path, onepage=False):
 
     fig, axarr = plt.subplots(2,2)
     ax_list = axarr.flat
-    series_list = [df[ df.columns[feature_index]] for df in df_list]
+    series_list = [df[df.columns[feature_index]] for df in df_list]
     whole_series, dropout_series, magic_series, scimpute_series, infer_series = series_list
 
     new_series_list = [whole_series, magic_series, scimpute_series, infer_series]
@@ -196,6 +196,6 @@ def plot_complete(test_path_or_df, infer_path_or_df, save_path, onepage=False):
 if __name__ == "__main__":
 
   plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop60_test.png")
-  plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
+ # plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
   # get_similarity("/home/bigdata/cwl/Gan/data/drop80_log.infer", "/home/bigdata/cwl/Gan/prediction/log_sigmoid/log_sigmoid.3500.fix.complete")
-  scatter_compare("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/scatter_compare.png")
+ # scatter_compare("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/scatter_compare.png")
