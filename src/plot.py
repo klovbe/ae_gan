@@ -22,7 +22,7 @@ def get_top_feature(df, top=100):
   mean = np.mean(df.values, axis=0)
   x = np.divide(standard_vars, mean)
   top_vars_index = x.argsort()[-top:][::-1]
-  return df.columns[top_vars_index]
+  return top_vars_index
 
 def raw_dataframe(test_path_or_df, infer_path_or_df):
   if type(test_path_or_df) == str:
@@ -73,8 +73,8 @@ def plot_heatmap(test_path_or_df, infer_path_or_df, save_path, top_features=100,
   [whole_df, dropout_df, magic_df, scimpute_df, infer_df, indexs] = get_dataframe(test_path_or_df, infer_path_or_df)
   df_list = [whole_df, magic_df, scimpute_df, infer_df]
   name_list = ["whole", "magic", "scimpute", "autoencoder"]
-  high_variance_columns = get_top_feature(whole_df)
-  sel_df_list = [df[high_variance_columns] for df in df_list]
+  high_variance_columns_index = get_top_feature(whole_df)
+  sel_df_list = [df[ df.columns[ high_variance_columns_index] ] for df in df_list]
   plt.rcParams["figure.figsize"] = [15, 15]
 
   fig, axn = plt.subplots(2, 2, sharex=True, sharey=True)
@@ -87,7 +87,7 @@ def plot_heatmap(test_path_or_df, infer_path_or_df, save_path, top_features=100,
     sns.heatmap(df, ax=ax, cmap="YlGnBu", xticklabels=False, yticklabels=False, cbar=False)
   fig.savefig(save_path, dpi=600)
 
-  sel_dropout_df = dropout_df[high_variance_columns]
+  sel_dropout_df = dropout_df[ dropout_df.columns[high_variance_columns_index] ]
   fig = plt.figure(0)
   plt.title("dropout", fontsize=50)
   sns.heatmap(sel_dropout_df, cmap="YlGnBu", xticklabels=False, yticklabels=False, cbar=True)
@@ -136,7 +136,7 @@ def plot_complete(test_path_or_df, infer_path_or_df, save_path, onepage=False):
   print(dropout_df.shape, infer_df.shape, magic_df.shape, scimpute_df.shape)
   # Two subplots, the axes array is 1-d
 
-  feature_indexs = np.random.choice(range(whole_df.shape[1]), 50)
+  feature_indexs = np.random.choice(range(whole_df.shape[1]), 10)
 
   # feature_indexs = [3000]
 
@@ -195,7 +195,7 @@ def plot_complete(test_path_or_df, infer_path_or_df, save_path, onepage=False):
 
 if __name__ == "__main__":
 
-  plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop60_test.png")
- # plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
+  # plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop60_test.png")
+ plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
   # get_similarity("/home/bigdata/cwl/Gan/data/drop80_log.infer", "/home/bigdata/cwl/Gan/prediction/log_sigmoid/log_sigmoid.3500.fix.complete")
  # scatter_compare("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/scatter_compare.png")

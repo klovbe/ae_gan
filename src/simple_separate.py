@@ -66,18 +66,18 @@ class Simple_separate:
         self.acc_sum =tf.summary.scalar("accuracy",self.accuracy)
         self.loss_binary_sum = tf.summary.scalar("binary_loss",self.loss_binary)
         self.loss_gv_sum = tf.summary.scalar("loss_mse",self.loss_gv)
-
+        self.sign_sum = tf.summary.histogram("sign",self.imitation_sign)
 
         self.gv_sum = tf.summary.merge(
-            [self.gv_loss_sum,self.loss_gv_sum,self.loss_binary_sum])
+            [self.gv_loss_sum,self.loss_gv_sum,self.loss_binary_sum,self.sign_sum])
         if is_log:
             self.g_sum = tf.summary.merge(
-                [self.gv_loss_sum, self.g_loss_sum, self.loss_gv_sum, self.loss_binary_sum])
+                [self.gv_loss_sum, self.g_loss_sum, self.loss_gv_sum, self.loss_binary_sum, self.sign_sum])
         else:
             self.g_sum = tf.summary.merge(
-                [self.gv_loss_sum, self.dg_loss_fake_sum, self.g_loss_sum,self.loss_gv_sum,self.loss_binary_sum])
+                [self.gv_loss_sum, self.dg_loss_fake_sum, self.g_loss_sum,self.loss_gv_sum,self.loss_binary_sum, self.sign_sum])
         self.d_sum = tf.summary.merge(
-            [self.d_loss_real_sum, self.d_loss_sum,self.acc_sum])
+            [self.d_loss_real_sum, self.d_loss_sum, self.d_loss_fake_sum, self.acc_sum])
 
 
     def encoder_value(self, input ,is_training):
