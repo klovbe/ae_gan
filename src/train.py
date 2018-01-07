@@ -16,7 +16,7 @@ import keras.backend as K
 def train():
 
     LEARNING_RATE1 = 1e-3
-    LEARNING_RATE2 = 0.001
+    LEARNING_RATE2 = 0.000001
     BATCH_SIZE = 64
     PRETRAIN_EPOCH = 500
     PRETRAIN_EPOCH_d = 700
@@ -24,13 +24,14 @@ def train():
     dropout_value = 0.9
     dropout_sign = 1.0
     train_datapath = r"F:/project/simulation_data/drop60_p.train"
-    EPOCH = 5000
+    EPOCH = 8000
     # outDir = r"F:/project/simulation_data/drop60/bn_"
     # model_name = "AE-GAN_bn_dp_0.9_0_1e-4_2lr_alpha_0.5_separate"
-    model_name = "AE-GAN_bn_dp_0.9_0_1e-4_1lr_alpha_0.1_log_simple"
-    load_checkpoint = True
+    model_name = "AE-GAN_bn_dp_0.9_0_1e-4_2lr_log_alpha_0.1_mask_separate"
+    load_checkpoint = False
     outDir = os.path.join("F:/project/simulation_data/drop60", model_name)
-    model = "simple"
+    model = "separate"
+    save_interval =  2000
 
 
     x = tf.placeholder(tf.float32, [None, feature_nums], name= "input_data")
@@ -46,7 +47,8 @@ def train():
     }
 
     Network = model_dict[model]
-    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value, dropout_sign=dropout_sign, is_bn=True, is_log=False)
+    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value,
+                    dropout_sign=dropout_sign, is_bn=True, is_log=True, is_mask=True)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
@@ -178,7 +180,7 @@ def train():
 
             print('Completion loss: {}'.format(g_loss))
             print('Discriminator loss: {}'.format(d_loss))
-            if sess.run(epoch) % 500 == 0:
+            if sess.run(epoch) % save_interval == 0:
                 saver = tf.train.Saver()
                 saver.save(sess, load_model_dir+'/latest', write_meta_graph=True, global_step=global_step)
 

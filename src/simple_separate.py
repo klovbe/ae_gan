@@ -8,13 +8,14 @@ from keras import constraints
 from keras import backend as K
 
 class Simple_separate:
-    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn, is_log):
+    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn, is_log, is_mask):
         self.batch_size = batch_size
         self.feature_num = feature_num
         self.dropout_value = dropout_value
         self.dropout_sign = dropout_sign
         self.is_bn = is_bn
         self.is_log = is_log
+        self.is_mask = is_mask
         if is_bn:
             self.encoderv_out = self.encoder_value_bn(x, is_training)
             self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
@@ -29,7 +30,8 @@ class Simple_separate:
         self.loss_binary, self.loss_gv,self.gv_loss, self.mask = self.calc_gv_loss(x, self.imitation, self.imitation_sign)
         with tf.name_scope("generate_data"):
             self.completion = self.imitation * self.imitation_sign
-            self.completion = x*self.mask + self.completion*(1-self.mask)
+            if is_mask:
+                self.completion = x*self.mask + self.completion*(1-self.mask)
 
 
 
@@ -44,6 +46,7 @@ class Simple_separate:
             self.d_loss_real, self.d_loss_fake, self.dg_loss_fake, self.accuracy = self.calc_d_loss1(self.real,self.fake)
             self.g_loss = tf.add(self.gv_loss, self.dg_loss_fake, name="cal_g_loss")
             self.d_loss = tf.add(self.d_loss_fake, self.d_loss_real, name="cal_d_loss")
+            self.dg_loss_fake_sum = tf.summary.scalar("dg_loss", self.dg_loss_fake)
 
 
         scope_list = ["encoder_value", "encoder_sign", "decoder_sign", "decoder_value"]
@@ -58,7 +61,7 @@ class Simple_separate:
 
         self.gv_loss_sum = tf.summary.scalar("gv_loss", self.gv_loss)
         self.g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
-        self.dg_loss_fake_sum = tf.summary.scalar("dg_loss",self.dg_loss_fake)
+
         self.d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
         self.acc_sum =tf.summary.scalar("accuracy",self.accuracy)
         self.loss_binary_sum = tf.summary.scalar("binary_loss",self.loss_binary)
@@ -67,8 +70,12 @@ class Simple_separate:
 
         self.gv_sum = tf.summary.merge(
             [self.gv_loss_sum,self.loss_gv_sum,self.loss_binary_sum])
-        self.g_sum = tf.summary.merge(
-            [self.gv_loss_sum, self.dg_loss_fake_sum, self.g_loss_sum,self.loss_gv_sum,self.loss_binary_sum])
+        if is_log:
+            self.g_sum = tf.summary.merge(
+                [self.gv_loss_sum, self.g_loss_sum, self.loss_gv_sum, self.loss_binary_sum])
+        else:
+            self.g_sum = tf.summary.merge(
+                [self.gv_loss_sum, self.dg_loss_fake_sum, self.g_loss_sum,self.loss_gv_sum,self.loss_binary_sum])
         self.d_sum = tf.summary.merge(
             [self.d_loss_real_sum, self.d_loss_sum,self.acc_sum])
 
@@ -297,7 +304,7 @@ class Simple_separate:
         return d_loss_real,d_loss_fake,accuracy
 
     def calc_d_loss1(self, real, fake):
-        alpha = 0.5
+        alpha = 0.1
         #logits: theta *x ,same dimension as categories
         with tf.name_scope("cal_d_loss"):
             d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=real, labels=tf.ones_like(real)))

@@ -8,13 +8,15 @@ from keras import constraints
 from keras import backend as K
 
 class Simple_model:
-    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn, is_log):
+    def __init__(self, x, is_training, batch_size, feature_num, dropout_value, dropout_sign, is_bn, is_log, is_mask):
         self.batch_size = batch_size
         self.feature_num = feature_num
         self.dropout_value = dropout_value
         self.dropout_sign = dropout_sign
         self.is_bn = is_bn
         self.is_log = is_log
+        self.is_mask = is_mask
+
         if is_bn:
             self.encoderv_out = self.encoder_value_bn(x, is_training)
             self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
@@ -24,12 +26,24 @@ class Simple_model:
             self.imitation = self.decoder_value(self.encoderv_out, is_training)
             self.imitation_sign = self.decoder_sign(self.encoder_sign(x, is_training), is_training)
 
-        with tf.name_scope("generate_data"):
-            self.completion = self.imitation * self.imitation_sign
+        with tf.name_scope("cal_mask"):
+            mask = tf.equal(x, tf.zeros_like(x))
+            mask = tf.cast(mask, dtype=tf.float32)
+            self.mask = 1 - mask
+
+        if is_mask:
+            with tf.name_scope("generate_data"):
+                self.completion = self.imitation * self.imitation_sign
+                self.gv_loss = self.calc_gv_loss(x, self.completion)
+                self.completion = x * self.mask + self.completion * (1 - self.mask)
+        else:
+            with tf.name_scope("generate_data"):
+                self.completion = self.imitation * self.imitation_sign
+                self.gv_loss = self.calc_gv_loss(x, self.completion)
 
         self.real = self.discriminator(x, reuse=None)
         self.fake = self.discriminator(self.completion, reuse=True)
-        self.gv_loss = self.calc_gv_loss(x, self.completion)
+        # self.gv_loss= self.calc_gv_loss(x, self.completion)
         if is_log:
             self.d_loss_real,self.d_loss_fake,self.accuracy = self.calc_d_loss(self.real, self.fake)
             self.g_loss = tf.subtract(self.gv_loss, self.d_loss_fake, name="cal_g_loss")
