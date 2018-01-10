@@ -24,6 +24,7 @@ def get_top_feature(df, top=100):
   top_vars_index = x.argsort()[-top:][::-1]
   return top_vars_index
 
+
 def raw_dataframe(test_path_or_df, infer_path_or_df):
   if type(test_path_or_df) == str:
     dropout_df = data_preprocess.sub_handle(test_path_or_df,way="same",ind_col=None, trans=False)
@@ -195,7 +196,7 @@ def plot_complete(test_path_or_df, infer_path_or_df, save_path, onepage=False):
 
 if __name__ == "__main__":
 
-  # plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop60_test.png")
- plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
+  plot_complete("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_simple_testinfer.complete", "F:/plot/1_9/drop60_test.png")
+ # plot_heatmap("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/drop80_headmap.png")
   # get_similarity("/home/bigdata/cwl/Gan/data/drop80_log.infer", "/home/bigdata/cwl/Gan/prediction/log_sigmoid/log_sigmoid.3500.fix.complete")
  # scatter_compare("F:/project/simulation_data/drop60_p.train", "F:/project/simulation_data/drop60/AE-GAN_newbn_dp_0.9_0_simpleinfer.complete", "F:/plot/scatter_compare.png")

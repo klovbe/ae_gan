@@ -50,25 +50,27 @@ trans_map = {
   "row_normal":row_normalization,
   "div_max": divide_max,
   "same": same,
-  "log": log
+  "log":log,
+  "log10": log10
 }
 
-def sub_handle(path, way,ind_col=0, trans=True ,save_path=None,**kwargs):
-  data = pd.read_csv(path, header=0, sep=",", index_col=ind_col)
+def sub_handle(path, way, header=0, ind_col=0, save_path=None,**kwargs):
+  data = pd.read_csv(path, header=header, sep=",", index_col=ind_col)
   print("read from {} done".format(path))
-  if trans:
+  [m,n] = data.shape
+  if m>n:
     data = data.transpose()
   print("{} data_shape is {}".format(path, data.shape))
 
-  print("origin col nums: {}".format(len(data.columns)))
-  if kwargs.get("del_zero_cols") is not None:
-    x = kwargs.get("del_zero_cols")
+  print("origin gene nums: {}".format(len(data.columns)))
+  if kwargs.get("filter_gene") is not None:
+    x = kwargs.get("filter_gene")
     col_list = []
     for col in data.columns:
       if (data[col] > 0.0).sum() >= x:
         col_list.append(col)
     data = data[col_list]
-  print("now col nums: {}".format(len(data.columns)))
+  print("now gene nums: {}".format(len(data.columns)))
   columns = list(data.columns)
   data = data.values
   data = trans_map[way](data,**kwargs)

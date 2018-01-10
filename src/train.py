@@ -13,9 +13,10 @@ import keras.backend as K
 
 
 
-def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_value, EPOCH, model_name, model="separate",
-          load_checkpoint=False, train_datapath = r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
-          dropout_sign=1.0):
+def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_value, EPOCH, model_name, is_bn,
+          is_log, is_mask, model="separate",
+          load_checkpoint=False, train_datapath = r"F:/project/simulation_data/drop60_p.train",
+          feature_nums=15549, dropout_sign=1.0):
 
 
 
@@ -40,7 +41,7 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
 
     Network = model_dict[model]
     model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value,
-                    dropout_sign=dropout_sign, is_bn=True, is_log=False, is_mask=True)
+                    dropout_sign=dropout_sign, is_bn=is_bn, is_log=is_log, is_mask=is_mask)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
@@ -84,6 +85,8 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
     dataset = DataSet(train_datapath, BATCH_SIZE)
     #each epoch has step_num steps
     step_num = dataset.steps
+    mode = dataset.mode
+    mode = mode > 0
 
     while sess.run(epoch) < EPOCH:
         sess.run(tf.assign(epoch, tf.add(epoch, 1)))
@@ -107,7 +110,7 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
                 imitate_datas = []
                 complete_datas = []
                 embed_datas = []
-                for i in tqdm.tqdm(range(step_num+1)):
+                for i in tqdm.tqdm(range(step_num+mode)):
                     x_batch = dataset.next()
                     mask = x_batch == 0
                     embed, imitation, completion = sess.run([model.encoderv_out, model.imitation, model.completion],
@@ -182,7 +185,7 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
             imitate_datas = []
             complete_datas = []
             embed_datas = []
-            for i in tqdm.tqdm(range(step_num+1)):
+            for i in tqdm.tqdm(range(step_num+mode)):
                 x_batch = dataset.next()
                 mask = x_batch == 0
                 embed,imitation,completion = sess.run([model.encoderv_out, model.imitation, model.completion],
@@ -213,7 +216,8 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
             print("save complete data to {}".format(outDir))
 
 
-def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_value, EPOCH, model_name, model="separate",
+def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_value, EPOCH, model_name, is_bn,
+          is_log, is_mask, model="separate",
           load_checkpoint=False, train_datapath = r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
           dropout_sign=1.0):
 
@@ -235,7 +239,7 @@ def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dr
 
     Network = model_dict[model]
     model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value,
-                    dropout_sign=dropout_sign, is_bn=True, is_log=False, is_mask=True)
+                    dropout_sign=dropout_sign, is_bn=is_bn, is_log=is_log, is_mask=is_mask)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
@@ -256,54 +260,56 @@ def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dr
         saver.restore(sess, ckpt.model_checkpoint_path)
 
     #each epoch has step_num steps
+
+    dataset = DataSet(train_datapath, BATCH_SIZE, onepass=True, shuffle=False)
     step_num = dataset.steps
-    with tf.Session() as sess:
-        ckpt = tf.train.get_checkpoint_state(load_model_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            saver.restore(sess, ckpt.model_checkpoint_path)
+    imitate_datas = []
+    complete_datas = []
+    embed_datas = []
+    for i in tqdm.tqdm(range(step_num + 1)):
+        x_batch = dataset.next()
+        mask = x_batch == 0
+        embed, imitation, completion = sess.run([model.encoderv_out, model.imitation, model.completion],
+                                                feed_dict={x: x_batch, is_training: False,
+                                                           learning_rate: LEARNING_RATE2, K.learning_phase(): 0}
+                                                )
+        completion = np.array(completion, dtype=np.float)
+        imitation = np.array(imitation, dtype=np.float)
+        embed = np.array(embed, dtype=np.float)
+        mask = mask.astype(float)
+        completion = x_batch * (1 - mask) + completion * mask
+        imitation = x_batch * (1 - mask) + imitation * mask
+        complete_datas.append(completion)
+        imitate_datas.append(imitation)
+        embed_datas.append(embed)
 
-        dataset = DataSet(train_datapath, BATCH_SIZE, onepass=True, shuffle=False)
-        imitate_datas = []
-        complete_datas = []
-        embed_datas = []
-        for i in tqdm.tqdm(range(step_num + 1)):
-            x_batch = dataset.next()
-            mask = x_batch == 0
-            embed, imitation, completion = sess.run([model.encoderv_out, model.imitation, model.completion],
-                                                    feed_dict={x: x_batch, is_training: False,
-                                                               learning_rate: LEARNING_RATE2, K.learning_phase(): 0}
-                                                    )
-            completion = np.array(completion, dtype=np.float)
-            imitation = np.array(imitation, dtype=np.float)
-            embed = np.array(embed, dtype=np.float)
-            mask = mask.astype(float)
-            completion = x_batch * (1 - mask) + completion * mask
-            imitation = x_batch * (1 - mask) + imitation * mask
-            complete_datas.append(completion)
-            imitate_datas.append(imitation)
-            embed_datas.append(embed)
-
-        complete_datas = np.reshape(np.concatenate(complete_datas, axis=0), (-1, feature_nums))
-        imitate_datas = np.reshape(np.concatenate(imitate_datas, axis=0), (-1, feature_nums))
-        embed_datas = np.reshape(np.concatenate(embed_datas, axis=0), (-1, feature_nums // 32))
-        df_c = pd.DataFrame(complete_datas)
-        df_i = pd.DataFrame(imitate_datas)
-        df_e = pd.DataFrame(embed_datas)
-        if os.path.exists(outDir) == False:
-            os.makedirs(outDir)
-        # outPath = os.path.join(outDir, "infer.complete")
-        df_c.to_csv(outDir + "infer.imitate", index=None)
-        df_i.to_csv(outDir + "infer.complete", index=None)
-        df_e.to_csv(outDir + "infer.embed", index=None)
-        print("save complete data to {}".format(outDir))
+    complete_datas = np.reshape(np.concatenate(complete_datas, axis=0), (-1, feature_nums))
+    imitate_datas = np.reshape(np.concatenate(imitate_datas, axis=0), (-1, feature_nums))
+    embed_datas = np.reshape(np.concatenate(embed_datas, axis=0), (-1, feature_nums // 32))
+    df_c = pd.DataFrame(complete_datas)
+    df_i = pd.DataFrame(imitate_datas)
+    df_e = pd.DataFrame(embed_datas)
+    if os.path.exists(outDir) == False:
+        os.makedirs(outDir)
+    # outPath = os.path.join(outDir, "infer.complete")
+    df_c.to_csv(outDir + "infer.imitate", index=None)
+    df_i.to_csv(outDir + "infer.complete", index=None)
+    df_e.to_csv(outDir + "infer.embed", index=None)
+    print("save complete data to {}".format(outDir))
 
 if __name__ == '__main__':
-    train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=500, PRETRAIN_EPOCH_d=700, dropout_value=0.9,
-          EPOCH=6000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_mask_separate", model = "separate", load_checkpoint=False,
-          train_datapath=r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=500, PRETRAIN_EPOCH_d=700, dropout_value=0.9,
+    #       EPOCH=6000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_simple_test", is_bn=True,
+    #       is_log=True, is_mask=False,  model = "simple", load_checkpoint=False,
+    #       train_datapath=r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
+    #       dropout_sign=1.0)
+    # predict(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=500, PRETRAIN_EPOCH_d=700, dropout_value=0.9,
+    #       EPOCH=6000, model_name="AE-GAN_bn_dp_0.9_0_1e-4_2lr_log_alpha_0.1_mask_separate", is_bn=True,
+    #       is_log=True, is_mask=False,  model = "separate", load_checkpoint=False,
+    #       train_datapath=r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
+    #       dropout_sign=1.0)
+    train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=1000, PRETRAIN_EPOCH_d=2000, dropout_value=0.9,
+          EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_simple_binary_kolod", is_bn=True,
+          is_log=True, is_mask=False,  model = "simple", load_checkpoint=False,
+          train_datapath=r"F:/project/simulation_data/h_kolod.train", feature_nums=10685,
           dropout_sign=1.0)
-    predict(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=500, PRETRAIN_EPOCH_d=700, dropout_value=0.9,
-          EPOCH=6000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_mask_separate", model = "separate", load_checkpoint=False,
-          train_datapath=r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
-          dropout_sign=1.0)
-

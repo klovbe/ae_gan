@@ -304,7 +304,7 @@ class Simple_separate:
         return d_loss_real,d_loss_fake,accuracy
 
     def calc_d_loss1(self, real, fake):
-        alpha = 0.1
+        alpha = 1
         #logits: theta *x ,same dimension as categories
         with tf.name_scope("cal_d_loss"):
             d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=real, labels=tf.ones_like(real)))
