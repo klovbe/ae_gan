@@ -265,13 +265,6 @@ class Softgum_app:
                 out = out[:, :, 0:1]
                 #squeeze
                 out = tf.reshape(out,[-1,self.feature_num])
-            # out = keras.layers.Activation(weights=None, alpha_initializer="zero")(out)
-
-            # out = layers.linear(input, self.feature_num, scope="dec_first_layer")
-            # out = layers.linear(out, self.feature_num, scope="dec_second_layer")
-            # out = self.activation(out)
-
-            # (None, fe // 9) -> (None, fe // 3) -> (None, fe)
         return out, tau
 
     def generator(self, x, is_training):

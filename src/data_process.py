@@ -8,6 +8,8 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+import math
+
 import codecs
 from sklearn.utils.extmath import softmax
 
@@ -23,14 +25,18 @@ def reverse_normalization(data, factor=1e6, **kwargs):
   div = np.log(1 + factor * div)
   return div
 
-def row_normalization(data, factor=1e6, **kwargs):
+def reverse(data, base=math.e ,**kwargs):
+  exp = base^data-1
+  return np.floor(exp)
+
+def row_normalization(data, base=math.e, factor=1e6, **kwargs):
   row_sum = np.sum(data, axis=1)
   row_sum = np.expand_dims(row_sum, 1)
 
   div = np.divide(data, row_sum)
   print("begin to loop cal log...")
   m, n = np.shape(div)
-  div = np.log(1 + factor * div)
+  div = np.log(1 + factor * div)/np.log(base)
   print("data range is {}".format(np.max(div),np.min(div)))
   return div
 
@@ -39,22 +45,24 @@ def divide_max(data):
   trans = np.divide(data, matrix_max)
   return trans
 
-def log(data):
-  return np.log(data + 1.0)
+def log(data,base=math.e):
+  return np.log(data + 1.0)/np.log(base)
 
 def same(data):
   return data
 
 trans_map = {
-  "reverse":reverse_normalization,
+  "reverse":reverse,
+  "re_norm":reverse_normalization,
   "row_normal":row_normalization,
   "div_max": divide_max,
   "same": same,
   "log":log,
-  "log10": log10
+
 }
 
-def sub_handle(path, way, header=0, ind_col=0, save_path=None,**kwargs):
+def process_data(path, model_name, input_base=math.e, save_base=10, is_log=True, header=0, ind_col=0,**kwargs):
+
   data = pd.read_csv(path, header=header, sep=",", index_col=ind_col)
   print("read from {} done".format(path))
   [m,n] = data.shape
@@ -62,49 +70,75 @@ def sub_handle(path, way, header=0, ind_col=0, save_path=None,**kwargs):
     data = data.transpose()
   print("{} data_shape is {}".format(path, data.shape))
 
+  ori_outdir = "F:/project/simulation_data/origin"+ model_name+".csv"
+  ori_logoutdir = "F:/project/simulation_data/log"+ model_name+".csv"
+
+  if is_log:
+    data.to_csv(ori_logoutdir,index=False)
+    print("saved origin to {}".format(ori_logoutdir))
+    dv = data.values
+    data = trans_map["reverse"](dv,base=input_base,**kwargs)
+    data.to_csv(ori_outdir, index=False)
+    print("saved origin reverse raw count to {}".format(ori_outdir))
+  else:
+    data.to_csv(ori_outdir, index=False)
+    print("saved origin to {}".format(ori_outdir))
+    dv = data.values
+    data_ = trans_map["row_normal"](dv, base=save_base, **kwargs)
+    data_.to_csv(ori_logoutdir, index=False)
+    print("saved log of origin to{}".format(ori_logoutdir))
+
+
+#filter cell
+  print("origin cell nums: {}".format(len(data)))
+  if kwargs.get("filter_cell") is not None:
+    x = kwargs.get("filter_cell")
+    index_list = []
+    for row in data.index:
+      if x>1.0:
+        if (data.loc[row,:] > 0.0).sum() >= x:
+          index_list.append(row)
+      else:
+        if (data.loc[row,:] > 0.0).sum() >= x:
+          index_list.append(row)
+    data = data.loc[index_list,:]
+  print("now cell nums: {}".format(len(data)))
+
+#filter gene
   print("origin gene nums: {}".format(len(data.columns)))
   if kwargs.get("filter_gene") is not None:
-    x = kwargs.get("filter_gene")
+    y = kwargs.get("filter_gene")
     col_list = []
-    for col in data.columns:
-      if (data[col] > 0.0).sum() >= x:
-        col_list.append(col)
-    data = data[col_list]
+    for col in data.colums:
+      if x>1.0:
+        if (data.loc[:,col] > 0.0).sum() >= y:
+          col_list.append(col)
+      else:
+        if (data.loc[:,col] > 0.0).sum() >= y:
+          col_list.append(col)
+    data = data.loc[:,col_list]
   print("now gene nums: {}".format(len(data.columns)))
-  columns = list(data.columns)
-  data = data.values
-  data = trans_map[way](data,**kwargs)
-  print("data range is {}".format(np.max(data), np.min(data)))
-  data = pd.DataFrame(data, columns=columns)
 
-  if save_path is not None:
-    data.to_csv(save_path, index=False)
-    print("saved to {}".format(save_path))
-  return data
+  if kwargs.get("filter_cell") or kwargs.get("filter_gene") :
+    outdir_f = "F:/project/simulation_data/origin_f/"+ model_name+".csv"
+    logoutdir_f = "F:/project/simulation_data/log_f"+ model_name+".csv"
 
-def handle_data(train_path, test_path, save_train_path, save_test_path, way = "div_max", **kwargs):
-  train_df = sub_handle(train_path, way, **kwargs)
-  test_df = sub_handle(test_path, way, **kwargs)
+    data.to_csv(outdir_f,index=False)
+    print("save fitered raw count to {}".format(outdir_f))
+    columns = list(data.columns)
+    data = data.values
+    data = trans_map["row_normal"](data,**kwargs)
+    # print("data range is {}".format(np.max(data), np.min(data)))
+    data = pd.DataFrame(data, columns=columns)
+    data.to_csv(logoutdir_f,index=False)
+    print("save filtered log cont to {}".format(logoutdir_f))
 
-  all_df = pd.concat([train_df, test_df], axis=0)
 
-  all_df.to_csv(save_train_path, index=False)
-  print("save to {}".format(save_train_path))
-  test_df.to_csv(save_test_path, index=False)
-  print("save to {}".format(save_test_path))
+
+
+
 
 if __name__ == "__main__":
-
-  # train_path = r"/home/bigdata/cwl/data_preprocessed/train_drop80.csv"
-  # infer_path = r"/home/bigdata/cwl/data_preprocessed/test_drop80.csv"
-  #
-  # handle_data(train_path, infer_path, r"/home/bigdata/cwl/Gan/data/drop80_log.train", r"/home/bigdata/cwl/Gan/data/drop80_log.infer", way="log")
-
-  # train_path = r"/home/bigdata/cwl/data_preprocessed/train_drop60.csv"
-  # infer_path = r"/home/bigdata/cwl/data_preprocessed/test_drop60.csv"
-  #
-  # handle_data(train_path, infer_path, r"/home/bigdata/cwl/Gan/data/drop60_log.train",
-  #             r"/home/bigdata/cwl/Gan/data/drop60_log.infer", way="log")
 
   # sub_handle("/home/bigdata/cwl/Gan/cluster/h_kolod.csv", "row_normal", save_path="/home/bigdata/cwl/Gan/data/cluster/h_kolod.train",factor=1e6)
   # sub_handle("/home/bigdata/cwl/Gan/cluster/h_usoskin.csv", "row_normal", save_path="/home/bigdata/cwl/Gan/data/cluster/h_usoskin.train",factor=1e6)
@@ -125,10 +159,12 @@ if __name__ == "__main__":
   # sub_handle("F:/project/simulation_data/drop60_p.csv", "row_normal",
   #            save_path="F:/project/simulation_data/drop60_p.train", factor=1e6)
 
-  sub_handle("F:/project/glcic_mine/data/h_brain.csv", "row_normal", save_path="F:/project/simulation_data/h_brain.train",factor=1e6)
-  sub_handle("F:/project/glcic_mine/data/h_kolod.csv", "row_normal",
-             save_path="F:/project/simulation_data/h_kolod.train", factor=1e6)
-  sub_handle("F:/project/glcic_mine/data/h_pollen.csv", "row_normal",
-             save_path="F:/project/simulation_data/h_pollen.train", factor=1e6)
-  sub_handle("F:/project/glcic_mine/data/h_usoskin.csv", "row_normal",
-             save_path="F:/project/simulation_data/h_usoskin.train", factor=1e6)
+  # sub_handle("F:/project/glcic_mine/data/h_brain.csv", "row_normal", save_path="F:/project/simulation_data/h_brain.train",factor=1e6)
+  # sub_handle("F:/project/glcic_mine/data/h_kolod.csv", "row_normal",
+  #            save_path="F:/project/simulation_data/h_kolod.train", factor=1e6)
+  # sub_handle("F:/project/glcic_mine/data/h_pollen.csv", "row_normal",
+  #            save_path="F:/project/simulation_data/h_pollen.train", factor=1e6)
+  # sub_handle("F:/project/glcic_mine/data/h_usoskin.csv", "row_normal",
+  #            save_path="F:/project/simulation_data/h_usoskin.train", factor=1e6)
+
+  process_data(path, model_name, input_base=math.e, save_base=10, is_log=True, header=0, ind_col=0, **kwargs)

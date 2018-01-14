@@ -278,7 +278,7 @@ class Simple_separate:
             loss_sum = tf.pow((x - imitation),2)
             loss_gv = tf.reduce_sum(loss_sum*mask)/count
         with tf.name_scope("cal_binary_loss"):
-            loss_binary = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=imitation_sign, labels=mask))
+            loss_binary = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.decoder_logits, labels=mask))
             gv_loss = tf.add(loss_binary, loss_gv)
         return loss_binary,loss_gv,gv_loss,mask
 

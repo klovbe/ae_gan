@@ -13,8 +13,8 @@ import keras.backend as K
 
 
 
-def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_value, EPOCH, model_name, is_bn,
-          is_log, is_mask, model="separate",
+def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_encoder, dropout_decoder, EPOCH, model_name, is_bn,
+          is_log, is_mask, is_binary, is_dependent, is_after, is_before, is_bn_d, model="separate",
           load_checkpoint=False, train_datapath = r"F:/project/simulation_data/drop60_p.train",
           feature_nums=15549, dropout_sign=1.0):
 
@@ -40,8 +40,10 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
     }
 
     Network = model_dict[model]
-    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value,
-                    dropout_sign=dropout_sign, is_bn=is_bn, is_log=is_log, is_mask=is_mask)
+    model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_encoder=dropout_encoder,
+                    dropout_decoder=dropout_decoder, dropout_sign=dropout_sign, is_bn=is_bn, is_log=is_log,
+                    is_mask=is_mask, is_binary=is_binary, is_dependent=is_dependent, is_after=is_after,
+                    is_before=is_before, is_bn_d=is_bn_d)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
@@ -216,10 +218,11 @@ def train(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, drop
             print("save complete data to {}".format(outDir))
 
 
-def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_value, EPOCH, model_name, is_bn,
-          is_log, is_mask, model="separate",
+def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dropout_encoder,dropout_decoder, EPOCH, model_name, is_bn,
+          is_log, is_mask, is_binary, is_dependent, is_after, is_before, is_bn_d, model="separate",
           load_checkpoint=False, train_datapath = r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
           dropout_sign=1.0):
+
 
     BATCH_SIZE = 64
     outDir = os.path.join("F:/project/simulation_data/drop60", model_name)
@@ -239,7 +242,8 @@ def predict(LEARNING_RATE1, LEARNING_RATE2, PRETRAIN_EPOCH, PRETRAIN_EPOCH_d, dr
 
     Network = model_dict[model]
     model = Network(x, is_training, batch_size=BATCH_SIZE, feature_num=feature_nums, dropout_value=dropout_value,
-                    dropout_sign=dropout_sign, is_bn=is_bn, is_log=is_log, is_mask=is_mask)
+                    dropout_sign=dropout_sign, is_bn=is_bn, is_log=is_log, is_mask=is_mask, is_binary=is_binary,
+                    is_dependent=is_dependent, is_after=is_after, is_before=is_before)
     sess = tf.Session()
     global_step = tf.Variable(0, name='global_step', trainable=False)
     epoch = tf.Variable(0, name='epoch', trainable=False)
@@ -308,8 +312,49 @@ if __name__ == '__main__':
     #       is_log=True, is_mask=False,  model = "separate", load_checkpoint=False,
     #       train_datapath=r"F:/project/simulation_data/drop60_p.train", feature_nums=15549,
     #       dropout_sign=1.0)
-    train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=1000, PRETRAIN_EPOCH_d=2000, dropout_value=0.9,
-          EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_simple_binary_kolod", is_bn=True,
-          is_log=True, is_mask=False,  model = "simple", load_checkpoint=False,
-          train_datapath=r"F:/project/simulation_data/h_kolod.train", feature_nums=10685,
-          dropout_sign=1.0)
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=1000, PRETRAIN_EPOCH_d=2000, dropout_value=0.9,
+    #       EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_simple_kolod", is_bn=True,
+    #       is_log=True, is_mask=False, is_binary=False, is_dependent=False,  model = "simple", load_checkpoint=False,
+    #       train_datapath=r"F:/project/simulation_data/h_kolod.train", feature_nums=10685,
+    #       dropout_sign=1.0)
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=2000, PRETRAIN_EPOCH_d=2500, dropout_value=0.9,
+    #       EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_binary_kolod", is_bn=True,
+    #       is_log=True, is_mask=False, is_binary=True, is_dependent=False, is_after=True, is_before=False,
+    #       model = "simple", load_checkpoint=False, train_datapath=r"F:/project/simulation_data/h_kolod.train",
+    #       feature_nums=10685, dropout_sign=1.0)
+
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=2000, PRETRAIN_EPOCH_d=2500, dropout_value=0.9,
+    #       EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_log_binary_dependent_kolod", is_bn=True,
+    #       is_log=True, is_mask=False, is_binary=True, is_dependent=True, is_after=True, is_before=False,
+    #       model = "simple", load_checkpoint=False, train_datapath=r"F:/project/simulation_data/h_kolod.train",
+    #       feature_nums=10685, dropout_sign=1.0)
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=2000, PRETRAIN_EPOCH_d=2500, dropout_value=0.9,
+    #       EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_0.1_kolod", is_bn=True,
+    #       is_log=False, is_mask=False, is_binary=False, is_dependent=False, is_after=True, is_before=False,
+    #       model = "simple", load_checkpoint=False, train_datapath=r"F:/project/simulation_data/h_kolod.train",
+    #       feature_nums=10685, dropout_sign=1.0)
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=2000, PRETRAIN_EPOCH_d=2500, dropout_value=0.9,
+    #       EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_1_kolod", is_bn=True,
+    #       is_log=False, is_mask=False, is_binary=False, is_dependent=False, is_after=True, is_before=False,
+    #       model = "simple", load_checkpoint=False, train_datapath=r"F:/project/simulation_data/h_kolod.train",
+    #       feature_nums=10685, dropout_sign=1.0)
+    # train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=2000, PRETRAIN_EPOCH_d=2500, dropout_value=0.9,
+    #       EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_1_binary_kolod", is_bn=True,
+    #       is_log=False, is_mask=False, is_binary=True, is_dependent=False, is_after=True, is_before=False,
+    #       model = "simple", load_checkpoint=False, train_datapath=r"F:/project/simulation_data/h_kolod.train",
+    #       feature_nums=10685, dropout_sign=1.0)
+
+    train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=5000, PRETRAIN_EPOCH_d=5500, dropout_encoder=0.9,
+          dropout_decoder=1.0, EPOCH=25000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_1_only_encoder_drop_bn_d_kolod", is_bn=True,
+          is_log=False, is_mask=False, is_binary=False, is_dependent=False, is_after=True, is_before=False, is_bn_d=True,
+          model = "simple", load_checkpoint=True, train_datapath=r"F:/project/simulation_data/h_kolod.train",
+          feature_nums=10685, dropout_sign=1.0)
+
+
+
+
+    train(LEARNING_RATE1=1e-3, LEARNING_RATE2=0.000001, PRETRAIN_EPOCH=2000, PRETRAIN_EPOCH_d=2500, dropout_encoder=0.9,
+          dropout_decoder=1.0, EPOCH=10000, model_name="AE-GAN_bn_dp_0.9_0_2lr_alpha_1_only_encoder_drop_pollen", is_bn=True,
+          is_log=False, is_mask=False, is_binary=False, is_dependent=False, is_after=True, is_before=False, is_bn_d=False,
+          model = "simple", load_checkpoint=False, train_datapath=r"F:/project/simulation_data/h_pollen.train",
+          feature_nums=10685, dropout_sign=1.0)
