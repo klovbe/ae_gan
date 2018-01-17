@@ -9,7 +9,7 @@ from keras import backend as K
 
 class Simple_model:
     def __init__(self, x, is_training, batch_size, feature_num, dropout_encoder, dropout_decoder, dropout_sign, is_bn,
-                 is_log, is_mask, is_binary, is_dependent, is_after, is_before, is_bn_d):
+                 is_log, is_mask, is_binary, is_dependent, is_after, is_before, is_bn_d, is_approximate):
         self.batch_size = batch_size
         self.feature_num = feature_num
         self.dropout_encoder = dropout_encoder
@@ -21,21 +21,40 @@ class Simple_model:
         self.is_binary = is_binary
         self.is_dependent = is_dependent
 
-        if is_bn:
-            self.encoderv_out = self.encoder_value_bn(x, is_training)
-            self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
-            if is_dependent:
-                self.decoder_logits = self.decoder_sign_bn(self.encoder_sign_bn(self.imitation, is_training), is_training)
+        if is_approximate:
+            if is_bn:
+                self.encoderv_out = self.encoder_value_bn(x, is_training)
+                self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
+                if is_dependent:
+                    self.imitation_sign = self.decoder_sign_bn_app(self.encoder_sign_bn(self.imitation, is_training), is_training)
+                else:
+                    self.imitation_sign = self.decoder_sign_bn_app(self.encoder_sign_bn(x, is_training), is_training)
             else:
-                self.decoder_logits = self.decoder_sign_bn(self.encoder_sign_bn(x, is_training), is_training)
+                self.encoderv_out = self.encoder_value(x, is_training)
+                self.imitation = self.decoder_value(self.encoderv_out, is_training)
+                if is_dependent:
+                    self.imitation_sign = self.decoder_sign_app(self.encoder_sign(self.imitation, is_training), is_training)
+                else:
+                    self.imitation_sign = self.decoder_sign_app(self.encoder_sign(x, is_training), is_training)
+
+
         else:
-            self.encoderv_out = self.encoder_value(x, is_training)
-            self.imitation = self.decoder_value(self.encoderv_out, is_training)
-            if is_dependent:
-                self.decoder_logits = self.decoder_sign(self.encoder_sign(self.imitation, is_training), is_training)
+            if is_bn:
+                self.encoderv_out = self.encoder_value_bn(x, is_training)
+                self.imitation = self.decoder_value_bn(self.encoderv_out, is_training)
+                if is_dependent:
+                    self.decoder_logits = self.decoder_sign_bn(self.encoder_sign_bn(self.imitation, is_training), is_training)
+                else:
+                    self.decoder_logits = self.decoder_sign_bn(self.encoder_sign_bn(x, is_training), is_training)
             else:
-                self.decoder_logits = self.decoder_sign(self.encoder_sign(x, is_training), is_training)
-        self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
+                self.encoderv_out = self.encoder_value(x, is_training)
+                self.imitation = self.decoder_value(self.encoderv_out, is_training)
+                if is_dependent:
+                    self.decoder_logits = self.decoder_sign(self.encoder_sign(self.imitation, is_training), is_training)
+                else:
+                    self.decoder_logits = self.decoder_sign(self.encoder_sign(x, is_training), is_training)
+            self.imitation_sign = keras.layers.activations.sigmoid(self.decoder_logits)
+
 
         with tf.name_scope("cal_mask"):
             mask = tf.equal(x, tf.zeros_like(x))
@@ -194,7 +213,35 @@ class Simple_model:
 
             # (None, fe // 9) -> (None, fe // 3) -> (None, fe)
         return out
+    def decoder_sign_app(self, input, is_training):
+        with tf.variable_scope("decoder_sign") :
+            # out = Dropout(0.2)(input)
+            out = Dense(self.feature_num // 16, activation="relu")(input)
+            out = Dense(self.feature_num // 4, activation="relu")(out)
+            # out = Dense(self.feature_num, kernel_constraint=constraints.non_neg, bias_constraint=constraints.non_neg)(out)
+            if self.dropout_sign < 1.0:
+                out = tf.nn.dropout(out, 1.0 - self.dropout_sign, name="dropout_ds")
+            # if self.dropout > 0.0:
+            #     out = keras.layers.Dropout(self.dropout)(out)
+            out = Dense(2*self.feature_num, kernel_regularizer=regularizers.l2(0.01))(out)
+            out = tf.reshape(out, [-1, 2])
+            with tf.name_scope("approximate_drop_prob"):
+                self.tau = tf.get_variable(name='temperature', shape=[1], dtype=tf.float32, initializer=tf.constant_initializer(0.5), trainable=True)
+                #get the tensor, most inside is [drop_prob,1-drop_prob]
+                out = tf.reshape(gumbel_softmax(out, self.tau, hard=False), [-1, self.feature_num, 2])
+                #take the dropout rate drop_prob
+                out = out[:, :, 0]
+                #squeeze
+                out = tf.reshape(out,[-1,self.feature_num])
 
+           # out = keras.layers.Activation(weights=None, alpha_initializer="zero")(out)
+
+            # out = layers.linear(input, self.feature_num, scope="dec_first_layer")
+            # out = layers.linear(out, self.feature_num, scope="dec_second_layer")
+            # out = self.activation(out)
+
+            # (None, fe // 9) -> (None, fe // 3) -> (None, fe)
+        return out
     def encoder_value_bn(self, input, is_training):
         with tf.variable_scope("encoder_value"):
             out = Dense(self.feature_num // 4, activation="linear")(input)
@@ -288,6 +335,44 @@ class Simple_model:
             # (None, fe // 9) -> (None, fe // 3) -> (None, fe)
         return out
 
+    def decoder_sign_bn_app(self, input, is_training):
+        with tf.variable_scope("decoder_sign"):
+            # out = Dropout(0.2)(input)
+            out = Dense(self.feature_num // 16)(input)
+            out = batch_norm(out, is_training=is_training)
+            out = keras.layers.activations.relu(out)
+            out = Dense(self.feature_num // 4)(out)
+            out = batch_norm(out, is_training=is_training)
+            out = keras.layers.activations.relu(out)
+            # out = Dense(self.feature_num, kernel_constraint=constraints.non_neg, bias_constraint=constraints.non_neg)(out)
+            if self.dropout_sign < 1.0:
+                out = tf.nn.dropout(out, 1.0 - self.dropout_sign, name="dropout_ds")
+            # if self.dropout > 0.0:
+            #     out = keras.layers.Dropout(self.dropout)(out)
+            out = Dense(2*self.feature_num, kernel_regularizer=regularizers.l2(0.01))(out)
+            out = tf.reshape(out,[-1,2])
+            # out = batch_norm(out, is_training=is_training)
+            # out = keras.layers.activations.sigmoid(out)
+
+            # with tf.name_scope("cal_drop_prob"):
+            #     out = tf.reshape(out,[-1,self.feature_num,1])
+            #     drop_prob = 1 - out
+            #     #dimension of prob should be [batch_size,feature_num,2]
+            #     prob = tf.concat((out, drop_prob), -1)
+            #     log_prob = tf.log(prob + 1e-20)
+                # log_prob = tf.reshape(log_prob, [-1, 2])
+
+            # sample and reshape back (shape=(batch_size,N,K))
+            # set hard=True for ST Gumbel-Softmax
+            with tf.name_scope("approximate_drop_prob"):
+                self.tau = tf.get_variable(name='temperature', shape=[1], dtype=tf.float32, initializer=tf.constant_initializer(0.5), trainable=False)
+                #get the tensor, most inside is [drop_prob,1-drop_prob]
+                out = tf.reshape(gumbel_softmax(out, self.tau, hard=False), [-1, self.feature_num, 2])
+                #take the dropout rate drop_prob
+                out = out[:, :, 1]
+                #squeeze
+                out = tf.reshape(out,[-1,self.feature_num])
+        return out
 
     def generator(self, x, is_training):
         with tf.variable_scope('generator'):
